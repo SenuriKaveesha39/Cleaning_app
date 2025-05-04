@@ -1,0 +1,35 @@
+venvC/
+node_modules/
+
+# -------------------
+# Flutter / cleaning_app_ui
+# -------------------
+cleaning_app_ui/.dart_tool/
+cleaning_app_ui/.packages
+cleaning_app_ui/.pub-cache/
+cleaning_app_ui/build/
+cleaning_app_ui/.flutter-plugins
+cleaning_app_ui/.flutter-plugins-dependencies
+cleaning_app_ui/.idea/
+cleaning_app_ui/.vscode/
+cleaning_app_ui/android/.gradle/
+cleaning_app_ui/android/app/debug/
+cleaning_app_ui/android/app/profile/
+cleaning_app_ui/android/app/release/
+cleaning_app_ui/*.iml
+# Web-related
+cleaning_app_ui/lib/generated_plugin_registrant.dart
+
+# Others
+cleaning_app_ui/*.log
+cleaning_app_ui/pubspec.lock
+cleaning_app_ui/.DS_Store
+
+
+.env
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+dist/
+build/
+.vscode/
