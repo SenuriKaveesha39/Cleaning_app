@@ -13,13 +13,27 @@ class _LoginScreenState extends State<LoginScreen> {
   final passwordController = TextEditingController();
 
   void login() async {
-    final success = await ApiService.login(emailController.text, passwordController.text);
-    if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Login successful")));
+    final data = await ApiService.login(emailController.text, passwordController.text);
+
+    if (data != null) {
+      final role = data['user']['role'];
+
+      if (role == 'admin') {
+        Navigator.pushReplacementNamed(context, '/adminDashboard');
+      } else if (role == 'cleaner') {
+        Navigator.pushReplacementNamed(context, '/cleanerTracker');
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Unknown role: $role"))
+        );
+      }
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Login failed")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Login failed"))
+      );
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
