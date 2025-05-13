@@ -13,4 +13,9 @@ app.use('/api/auth', require('./routes/auth'));
 
 // Importing the routes for admin actions (e.g., cleaners)
 app.use('/api/admin', require('./routes/admin'));  // Add this line
+
+const cleanerRoutes = require('./routes/cleaners');
+app.use('/api/cleaner', cleanerRoutes);
+
+
 app.listen(process.env.PORT, () => console.log(`Server running on port ${process.env.PORT}`));

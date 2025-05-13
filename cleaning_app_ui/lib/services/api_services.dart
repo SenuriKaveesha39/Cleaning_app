@@ -23,4 +23,40 @@ class ApiService {
     return null;
   }
 
+  static Future<bool> toggleClockInOut(bool isClockedIn) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+
+    final response = await http.post(
+      Uri.parse('http://localhost:5000/api/cleaner/clock'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({'action': isClockedIn ? 'clock_out' : 'clock_in'}),
+    );
+
+    return response.statusCode == 200;
+  }
+
+
+  static Future<Map<String, dynamic>> getTodayClockStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+
+    final response = await http.get(
+      Uri.parse('http://localhost:5000/api/cleaner/clock'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    }
+    return {'clockIn': null, 'clockOut': null};
+  }
+
+
 }

@@ -7,7 +7,7 @@ void main() {
   runApp(MaterialApp(
     home: LoginScreen(),
     routes: {
-      '/adminDashboard': (context) => AdminDashboard(),
+      '/adminDashboard': (context) => AdminDashboard(token: ''), // default fallback
       '/cleanerTracker': (context) => CleanerTimeTracker(),
     },
   ));

@@ -17,25 +17,38 @@ router.post('/register-admin', async (req, res) => {
 
 // Register Cleaner Route (requires admin role)
 router.post('/register-cleaner', authMiddleware(['admin']), async (req, res) => {
-  const { name, email, password } = req.body;
-  const admin = await User.findById(req.user.id); // Assuming req.user is set by authMiddleware
-  if (!admin) {
-    return res.status(404).json({ message: 'Admin not found' });
-  }
-
-  const hashedPassword = await bcrypt.hash(password, 10);
-  const cleaner = new User({
-    name,
-    email,
-    password: hashedPassword,
-    role: 'cleaner',
-    companyId: admin.companyId
+    const { name, email, password } = req.body;
+  
+    // Check if the cleaner already exists
+    const existingCleaner = await User.findOne({ email });
+    if (existingCleaner) {
+      return res.status(400).json({ message: 'Cleaner already exists' });
+    }
+  
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+  
+    // Create a new cleaner
+    const cleaner = new User({
+      name,
+      email,
+      password: hashedPassword,
+      role: 'cleaner',
+      companyId: req.user.companyId // Set companyId based on admin who registered the cleaner
+    });
+  
+    await cleaner.save();
+  
+    // Generate a token for the new cleaner
+    const token = jwt.sign({ id: cleaner._id, role: cleaner.role }, process.env.JWT_SECRET, { expiresIn: '1h' });
+  
+    // Return the success message along with the cleaner's token
+    res.status(201).json({
+      message: 'Cleaner registered successfully by admin',
+      token
+    });
   });
-
-  await cleaner.save();
-  res.status(201).json({ message: 'Cleaner registered under admin' });
-});
-
+  
 // Login Route (Add this if needed)
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;

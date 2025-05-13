@@ -1,5 +1,5 @@
+import 'package:cleaning_app_ui/screens/admin_dashboard.dart';
 import 'package:flutter/material.dart';
-
 import '../services/api_services.dart';
 
 
@@ -17,9 +17,15 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (data != null) {
       final role = data['user']['role'];
+      final token = data['token']; // 🔑 get the JWT token
 
       if (role == 'admin') {
-        Navigator.pushReplacementNamed(context, '/adminDashboard');
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => AdminDashboard(token: token), // Only pass what's needed
+          ),
+        );
       } else if (role == 'cleaner') {
         Navigator.pushReplacementNamed(context, '/cleanerTracker');
       } else {
@@ -33,6 +39,7 @@ class _LoginScreenState extends State<LoginScreen> {
       );
     }
   }
+
 
 
   @override
