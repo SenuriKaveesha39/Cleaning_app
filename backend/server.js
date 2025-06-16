@@ -2,6 +2,7 @@ const express = require('express');
 const connectDB = require('./config/db');
 const cors = require('cors');
 require('dotenv').config();
+const clockRoutes = require('./routes/clock');
 
 const app = express();
 connectDB();
@@ -16,6 +17,7 @@ app.use('/api/admin', require('./routes/admin'));  // Add this line
 
 const cleanerRoutes = require('./routes/cleaners');
 app.use('/api/cleaner', cleanerRoutes);
+app.use('/api/cleaner', clockRoutes);
 
 
 app.listen(process.env.PORT, () => console.log(`Server running on port ${process.env.PORT}`));
