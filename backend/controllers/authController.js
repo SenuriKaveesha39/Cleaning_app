@@ -23,6 +23,9 @@ exports.register = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
     const tenantId = role === 'admin' ? email : req.body.tenantId;
 
+    // Generate companyId for admins
+    const companyId = role === 'admin' ? new mongoose.Types.ObjectId() : req.body.companyId;
+
     // 3. Stripe Customer (only if stripe is configured)
     let stripeCustomer = null;
     if (role === 'admin' && stripe) {
@@ -36,6 +39,7 @@ exports.register = async (req, res) => {
       password: hashedPassword,
       role,
       tenantId,
+      companyId,
       stripeCustomerId: stripeCustomer?.id || null
     });
 
@@ -43,7 +47,7 @@ exports.register = async (req, res) => {
 
     // 5. Generate JWT
     const token = jwt.sign(
-      { id: user._id, role: user.role, tenantId: user.tenantId },
+      { id: user._id, role: user.role, tenantId: user.tenantId, companyId: user.companyId },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
@@ -66,7 +70,7 @@ exports.login = async (req, res) => {
 
     // Generate JWT
     const token = jwt.sign(
-      { id: user._id, role: user.role, tenantId: user.tenantId },
+      { id: user._id, role: user.role, tenantId: user.tenantId,companyId: user.companyId },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );

@@ -18,6 +18,12 @@ router.post('/register-admin', async (req, res) => {
 // Register Cleaner Route (requires admin role)
 router.post('/register-cleaner', authMiddleware(['admin']), async (req, res) => {
     const { name, email, password } = req.body;
+
+    // Find the admin to get the correct companyId
+    const admin = await User.findById(req.user.id);
+    if (!admin || admin.role !== 'admin') {
+      return res.status(403).json({ message: 'Access denied' });
+    }
   
     // Check if the cleaner already exists
     const existingCleaner = await User.findOne({ email });
@@ -34,13 +40,13 @@ router.post('/register-cleaner', authMiddleware(['admin']), async (req, res) => 
       email,
       password: hashedPassword,
       role: 'cleaner',
-      companyId: req.user.companyId // Set companyId based on admin who registered the cleaner
+      companyId: admin.companyId // Set companyId based on admin who registered the cleaner
     });
   
     await cleaner.save();
   
     // Generate a token for the new cleaner
-    const token = jwt.sign({ id: cleaner._id, role: cleaner.role }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    const token = jwt.sign({ id: cleaner._id, role: cleaner.role, companyId: cleaner.companyId }, process.env.JWT_SECRET, { expiresIn: '1h' });
   
     // Return the success message along with the cleaner's token
     res.status(201).json({

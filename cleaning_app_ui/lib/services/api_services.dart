@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -109,24 +110,36 @@ class ApiService {
 
 
 
+static Future<List<Map<String, dynamic>>> getCleaners() async {
+  final prefs = await SharedPreferences.getInstance();
+  final token = prefs.getString('token');
+  
+  if (token == null) throw Exception('Authentication required');
 
-//   static Future<List<Map<String, dynamic>>> getClockHistoryForAdmin() async {
-//     final prefs = await SharedPreferences.getInstance();
-//     final token = prefs.getString('token');
-//     final response = await http.get(
-//       Uri.parse('$baseUrl/clock/history'),
-//       headers: {
-//         'Authorization': 'Bearer $token',
-//       },
-//     );
+  final baseUrl = kIsWeb 
+      ? 'http://localhost:5000'
+      : 'http://10.0.2.2:5000'; // For Android emulator
 
-//     if (response.statusCode == 200) {
-//       List data = jsonDecode(response.body);
-//       return data.map((e) => Map<String, dynamic>.from(e)).toList();
-//     } else {
-//       throw Exception("Failed to fetch clock history");
-//     }
-// }
+  try {
+    final response = await http.get(
+      Uri.parse('$baseUrl/api/admin/cleaners'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    print('Cleaners API Response: ${response.statusCode} ${response.body}');
+    
+    if (response.statusCode == 200) {
+      final List<dynamic> data = json.decode(response.body);
+      return data.cast<Map<String, dynamic>>();
+    }
+    throw Exception('Failed with status ${response.statusCode}');
+  } catch (e) {
+    throw Exception('Cleaners fetch failed: ${e.toString()}');
+  }
+}
 
 
 
