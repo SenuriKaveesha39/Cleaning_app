@@ -4,7 +4,12 @@ const router = express.Router();
 const authMiddleware = require("../middleware/authMiddleware");
 const User = require("../models/user");
 const Clock = require("../models/clock");
-const assignWork = require("../controllers/admin.controller");
+const {
+    assignWork,
+    removeWork,
+    updateWork,
+} = require("../controllers/admin.controller");
+
 // GET /api/admin/cleaners
 // routes/admin.js
 router.get("/cleaners", authMiddleware(["admin"]), async (req, res) => {
@@ -73,6 +78,20 @@ router.post(
     "/cleaner/:cleanerId/assign",
     authMiddleware(["admin"]),
     assignWork
+);
+
+//Remove work. the clock should be in pending state
+router.delete(
+    "/cleaner/:cleanerId/remove-clock",
+    authMiddleware(["admin"]),
+    removeWork
+);
+
+//update work clock
+router.delete(
+    "/cleaner/:cleanerId/update-clock",
+    authMiddleware(["admin"]),
+    updateWork
 );
 
 module.exports = router;
