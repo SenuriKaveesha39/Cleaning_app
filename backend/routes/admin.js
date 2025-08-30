@@ -74,24 +74,12 @@ router.get(
 );
 
 //Assign Work
-router.post(
-    "/cleaner/:cleanerId/assign",
-    authMiddleware(["admin"]),
-    assignWork
-);
+router.post("/cleaner/assign-clock", authMiddleware(["admin"]), assignWork);
 
 //Remove work. the clock should be in pending state
-router.delete(
-    "/cleaner/:cleanerId/remove-clock",
-    authMiddleware(["admin"]),
-    removeWork
-);
+router.delete("/cleaner/remove-clock", authMiddleware(["admin"]), removeWork);
 
 //update work clock, the clock should be in pending state
-router.delete(
-    "/cleaner/:cleanerId/update-clock",
-    authMiddleware(["admin"]),
-    updateWork
-);
+router.delete("/cleaner/update-clock", authMiddleware(["admin"]), updateWork);
 
 module.exports = router;
