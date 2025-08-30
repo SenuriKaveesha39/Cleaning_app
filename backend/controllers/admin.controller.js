@@ -84,7 +84,6 @@ const removeWork = async (req, res) => {
     }
 };
 
-// update work
 const updateWork = async (req, res) => {
     const { clockId, date, locationName, long, lat } = req.body;
 
@@ -98,12 +97,10 @@ const updateWork = async (req, res) => {
         }
 
         if (clock.status !== "pending") {
-            return res
-                .status(400)
-                .json({
-                    success: false,
-                    message: "Cannot update job that is not pending",
-                });
+            return res.status(400).json({
+                success: false,
+                message: "Cannot update job that is not pending",
+            });
         }
 
         if (date) clock.date = new Date(date);

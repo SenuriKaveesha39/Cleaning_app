@@ -87,7 +87,7 @@ router.delete(
     removeWork
 );
 
-//update work clock
+//update work clock, the clock should be in pending state
 router.delete(
     "/cleaner/:cleanerId/update-clock",
     authMiddleware(["admin"]),
