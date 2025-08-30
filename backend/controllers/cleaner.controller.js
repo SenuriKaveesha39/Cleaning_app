@@ -90,4 +90,135 @@ const get7dayClockForCleaner = async (req, res) => {
     }
 };
 
-module.exports = { getTodaysClockForCleaner, get7dayClockForCleaner };
+const clockIn = async (req, res) => {
+    const { clockId, currentLat, currentLong } = req.body;
+    const userId = req.user.id;
+
+    try {
+        // 1. Check if cleaner already has a clocked-in job
+        const activeClock = await Clock.findOne({
+            userId,
+            status: "clockedIn",
+        });
+        if (activeClock) {
+            return res.status(400).json({
+                success: false,
+                message:
+                    "Please clock out from your current job before clocking in.",
+            });
+        }
+
+        // 2. Find the job by ID and status
+        const clock = await Clock.findOne({
+            _id: clockId,
+            userId,
+            status: "pending",
+        });
+        if (!clock) {
+            return res.status(404).json({
+                success: false,
+                message: "Job not found or already clocked in/completed.",
+            });
+        }
+
+        // 3. Check proximity using $near
+        const nearby = await Clock.findOne({
+            _id: clockId,
+            "assignedLocation.coordinates": {
+                $near: {
+                    $geometry: {
+                        type: "Point",
+                        coordinates: [currentLong, currentLat], // [lng, lat]
+                    },
+                    $maxDistance: 50, // 50 meters radius
+                },
+            },
+        });
+
+        if (!nearby) {
+            return res.status(403).json({
+                success: false,
+                message:
+                    "Cannot clock in: you are not within the range of assigned location.",
+            });
+        }
+
+        // 4. Clock in
+        clock.status = "clockedIn";
+        clock.clockIn = new Date();
+        await clock.save();
+
+        res.json({
+            success: true,
+            message: "Clocked in successfully!",
+            clock,
+        });
+    } catch (err) {
+        console.error("ClockIn Error:", err);
+        res.status(500).json({ success: false, message: "Server error" });
+    }
+};
+
+const clockOut = async (req, res) => {
+    const { clockId, currentLat, currentLong } = req.body;
+    const userId = req.user.id;
+
+    try {
+        // 1. Find the job by ID, belonging to user, and currently clockedIn
+        const clock = await Clock.findOne({
+            _id: clockId,
+            userId,
+            status: "clockedIn",
+        });
+        if (!clock) {
+            return res.status(400).json({
+                success: false,
+                message:
+                    "Cannot clock out: job not found or not currently clocked in.",
+            });
+        }
+
+        // 2. Optional: check proximity to assigned location for clock-out
+        const nearby = await Clock.findOne({
+            _id: clockId,
+            "assignedLocation.coordinates": {
+                $near: {
+                    $geometry: {
+                        type: "Point",
+                        coordinates: [currentLong, currentLat], // [lng, lat]
+                    },
+                    $maxDistance: 50, // 50 meters radius
+                },
+            },
+        });
+
+        if (!nearby) {
+            return res.status(403).json({
+                success: false,
+                message:
+                    "Cannot clock out: you are not within the rangr of assigned location.",
+            });
+        }
+
+        // 3. Clock out
+        clock.status = "clockedOut";
+        clock.clockOut = new Date();
+        await clock.save();
+
+        res.json({
+            success: true,
+            message: "Clocked out successfully!",
+            clock,
+        });
+    } catch (err) {
+        console.error("ClockOut Error:", err);
+        res.status(500).json({ success: false, message: "Server error" });
+    }
+};
+
+module.exports = {
+    getTodaysClockForCleaner,
+    get7dayClockForCleaner,
+    clockIn,
+    clockOut,
+};
