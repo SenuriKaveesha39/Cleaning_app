@@ -1,37 +1,37 @@
-const Clock = require("../models/clock");
+const { Clock } = require("../models/clock");
+const User = require("../models/user");
 
 const getTodaysClockForCleaner = async (req, res) => {
     try {
         const userId = req.user.id;
 
-        // Get today's date (YYYY-MM-DD)
-        const today = new Date().toISOString().split("T")[0];
+        // Get today's start and end (midnight → 23:59:59)
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
 
-        // Find all assignments for today (ignoring time part)
+        const endOfDay = new Date();
+        endOfDay.setHours(23, 59, 59, 999);
+
+        // Find today's clock records using createdAt
         const records = await Clock.find({
             userId,
-            $expr: {
-                $eq: [
-                    { $dateToString: { format: "%Y-%m-%d", date: "$date" } },
-                    today,
-                ],
-            },
+            createdAt: { $gte: startOfDay, $lte: endOfDay },
         });
 
         res.json({
             success: true,
-            date: today,
             totalAssignments: records.length,
-            assignments: records.map((r) => ({
+            clocks: records.map((r) => ({
                 id: r._id,
                 status: r.status,
                 clockIn: r.clockIn,
                 clockOut: r.clockOut,
                 assignedLocation: {
                     name: r.assignedLocation.name,
-                    date: r.assignedLocation.date,
                     coordinates: r.assignedLocation.coordinates,
                 },
+                createdAt: r.createdAt,
+                updatedAt: r.updatedAt,
             })),
         });
     } catch (err) {
@@ -48,28 +48,24 @@ const get7dayClockForCleaner = async (req, res) => {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        // Get the date 7 days ago
+        // Get the date 6 days before today (7-day range total)
         const sevenDaysAgo = new Date(today);
-        sevenDaysAgo.setDate(today.getDate() - 6); // 6 + today = 7 days
+        sevenDaysAgo.setDate(today.getDate() - 6);
 
         // Fetch all records in that date range
         const history = await Clock.find({
             userId,
-            date: {
-                $gte: sevenDaysAgo.toISOString().split("T")[0],
-                $lte: today.toISOString().split("T")[0],
-            },
-        }).sort({ date: -1 });
+            createdAt: { $gte: sevenDaysAgo, $lte: new Date() }, // include up to now
+        }).sort({ createdAt: -1 });
 
         const formatted = history.map((entry) => ({
             id: entry._id,
-            date: entry.date,
+            date: entry.createdAt.toISOString().split("T")[0], // format for output
             status: entry.status,
             clockIn: entry.clockIn,
             clockOut: entry.clockOut,
             assignedLocation: {
                 name: entry.assignedLocation.name,
-                date: entry.assignedLocation.date,
                 coordinates: entry.assignedLocation.coordinates,
             },
         }));
@@ -91,11 +87,13 @@ const get7dayClockForCleaner = async (req, res) => {
 };
 
 const clockIn = async (req, res) => {
-    const { clockId, currentLat, currentLong } = req.body;
+    const { locationId, currentLat, currentLong } = req.body;
     const userId = req.user.id;
 
+    console.log(locationId);
+
     try {
-        // 1. Check if cleaner already has a clocked-in job
+        // 1. Check if cleaner already has an active clock
         const activeClock = await Clock.findOne({
             userId,
             status: "clockedIn",
@@ -103,34 +101,38 @@ const clockIn = async (req, res) => {
         if (activeClock) {
             return res.status(400).json({
                 success: false,
-                message:
-                    "Please clock out from your current job before clocking in.",
+                message: "Please clock out before clocking in again.",
             });
         }
 
-        // 2. Find the job by ID and status
-        const clock = await Clock.findOne({
-            _id: clockId,
-            userId,
-            status: "pending",
-        });
-        if (!clock) {
+        // 2. Load user & check assigned location
+        const user = await User.findById(userId);
+        if (!user) {
             return res.status(404).json({
                 success: false,
-                message: "Job not found or already clocked in/completed.",
+                message: "User not found.",
             });
         }
 
-        // 3. Check proximity using $near
-        const nearby = await Clock.findOne({
-            _id: clockId,
-            "assignedLocation.coordinates": {
+        const assignedLocation = user.clockLocations.id(locationId);
+        if (!assignedLocation) {
+            return res.status(403).json({
+                success: false,
+                message: "You are not assigned to this location.",
+            });
+        }
+
+        // 3. Verify cleaner is physically near the assigned location
+        const nearby = await User.findOne({
+            _id: userId,
+            "clockLocations._id": locationId,
+            "clockLocations.coordinates": {
                 $near: {
                     $geometry: {
                         type: "Point",
                         coordinates: [currentLong, currentLat], // [lng, lat]
                     },
-                    $maxDistance: 50, // 50 meters radius
+                    $maxDistance: 50, // within 50 meters
                 },
             },
         });
@@ -139,19 +141,24 @@ const clockIn = async (req, res) => {
             return res.status(403).json({
                 success: false,
                 message:
-                    "Cannot clock in: you are not within the range of assigned location.",
+                    "Cannot clock in: you are not within range of the assigned location.",
             });
         }
 
-        // 4. Clock in
-        clock.status = "clockedIn";
-        clock.clockIn = new Date();
-        await clock.save();
+        // 4. Create new Clock entry with assignedLocation snapshot
+        const newClock = new Clock({
+            userId,
+            assignedLocation: assignedLocation.toObject(), // embed location snapshot
+            status: "clockedIn",
+            clockIn: new Date(),
+        });
+
+        await newClock.save();
 
         res.json({
             success: true,
             message: "Clocked in successfully!",
-            clock,
+            clock: newClock,
         });
     } catch (err) {
         console.error("ClockIn Error:", err);
@@ -160,34 +167,33 @@ const clockIn = async (req, res) => {
 };
 
 const clockOut = async (req, res) => {
-    const { clockId, currentLat, currentLong } = req.body;
+    const { currentLat, currentLong } = req.body;
     const userId = req.user.id;
 
     try {
-        // 1. Find the job by ID, belonging to user, and currently clockedIn
+        // 1. Find the active clock for this user
         const clock = await Clock.findOne({
-            _id: clockId,
             userId,
             status: "clockedIn",
-        });
+        }).sort({ clockIn: -1 }); // get most recent one if multiple
+
         if (!clock) {
             return res.status(400).json({
                 success: false,
-                message:
-                    "Cannot clock out: job not found or not currently clocked in.",
+                message: "Cannot clock out: no active clock found.",
             });
         }
 
-        // 2. Optional: check proximity to assigned location for clock-out
+        // 2. Check proximity to the same assigned location
         const nearby = await Clock.findOne({
-            _id: clockId,
+            _id: clock._id,
             "assignedLocation.coordinates": {
                 $near: {
                     $geometry: {
                         type: "Point",
                         coordinates: [currentLong, currentLat], // [lng, lat]
                     },
-                    $maxDistance: 50, // 50 meters radius
+                    $maxDistance: 50, // within 50 meters
                 },
             },
         });
@@ -196,11 +202,11 @@ const clockOut = async (req, res) => {
             return res.status(403).json({
                 success: false,
                 message:
-                    "Cannot clock out: you are not within the rangr of assigned location.",
+                    "Cannot clock out: you are not within the range of the assigned location.",
             });
         }
 
-        // 3. Clock out
+        // 3. Update clock
         clock.status = "clockedOut";
         clock.clockOut = new Date();
         await clock.save();

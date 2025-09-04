@@ -17,27 +17,28 @@ const locationSchema = new mongoose.Schema({
 });
 locationSchema.index({ coordinates: "2dsphere" });
 
-const clockSchema = new mongoose.Schema({
-    userId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-        required: true,
+const clockSchema = new mongoose.Schema(
+    {
+        userId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            required: true,
+        },
+
+        status: {
+            type: String,
+            enum: ["clockedIn", "clockedOut"],
+            default: "clockedIn",
+        },
+
+        clockIn: { type: Date },
+
+        clockOut: { type: Date },
+
+        assignedLocation: { type: locationSchema, required: true },
     },
-
-    date: { type: Date, required: true },
-
-    status: {
-        type: String,
-        enum: ["pending", "clockedIn", "clockedOut"],
-        default: "pending",
-    },
-
-    clockIn: { type: Date },
-
-    clockOut: { type: Date },
-
-    assignedLocation: { type: locationSchema, required: true },
-});
+    { timestamps: true }
+);
 
 const Clock = mongoose.model("Clock", clockSchema);
-module.exports = Clock;
+module.exports = { Clock, locationSchema };

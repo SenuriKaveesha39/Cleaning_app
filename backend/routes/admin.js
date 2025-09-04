@@ -6,8 +6,7 @@ const User = require("../models/user");
 const Clock = require("../models/clock");
 const {
     assignWork,
-    removeWork,
-    updateWork,
+    setOperatingLocations,
 } = require("../controllers/admin.controller");
 
 // GET /api/admin/cleaners
@@ -76,10 +75,11 @@ router.get(
 //Assign Work
 router.post("/cleaner/assign-clock", authMiddleware(["admin"]), assignWork);
 
-//Remove work. the clock should be in pending state
-router.delete("/cleaner/remove-clock", authMiddleware(["admin"]), removeWork);
-
-//update work clock, the clock should be in pending state
-router.delete("/cleaner/update-clock", authMiddleware(["admin"]), updateWork);
+//Upade operating locations of each business
+router.put(
+    "/cleaner/set-operating-locations",
+    authMiddleware(["admin"]),
+    setOperatingLocations
+);
 
 module.exports = router;

@@ -157,6 +157,8 @@ router.post("/login", async (req, res) => {
                 email: user.email,
                 role: user.role,
                 companyId: user.companyId,
+                clockLocations: user.clockLocations,
+                operatingLocations: user.operatingLocations,
             },
         });
     } catch (err) {

@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { locationSchema } = require("./clock");
 
 const userSchema = new mongoose.Schema({
     name: { type: String, required: true },
@@ -24,6 +25,10 @@ const userSchema = new mongoose.Schema({
     role: { type: String, enum: ["admin", "cleaner"], required: true },
 
     companyId: { type: mongoose.Schema.Types.ObjectId, ref: "User" }, // Admin's ID or a Company model ID
+
+    clockLocations: [{ type: locationSchema }], // Worker Operating Locations
+
+    operatingLocations: [{ type: locationSchema }], //Business Operating Locations
 
     active: { type: Boolean, default: true },
 });

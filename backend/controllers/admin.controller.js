@@ -1,8 +1,7 @@
 const User = require("../models/user");
-const Clock = require("../models/clock");
 
 const assignWork = async (req, res) => {
-    const { email, date, locationName, long, lat } = req.body;
+    const { email, workArray } = req.body;
 
     try {
         const cleaner = await User.findOne({ email });
@@ -14,25 +13,26 @@ const assignWork = async (req, res) => {
             });
         }
 
-        const newLocation = {
-            name: locationName,
+        const formattedWorkArray = workArray.map((work) => ({
+            name: work.locationName,
             coordinates: {
                 type: "Point",
-                coordinates: [long, lat], // [longitude, latitude]
+                coordinates: [work.long, work.lat], // [longitude, latitude]
             },
-        };
+        }));
 
-        const clock = new Clock({
-            userId: cleaner._id,
-            date: new Date(date),
-            assignedLocation: newLocation,
-        });
-
-        await clock.save();
+        const updated = await User.findByIdAndUpdate(
+            cleaner._id,
+            {
+                clockLocations: formattedWorkArray,
+            },
+            { new: true, runValidators: true }
+        ).select("-password -__v");
 
         return res.json({
-            message: "Job assigned successfully",
-            clock,
+            success: true,
+            message: "Jobs updated successfully",
+            updated,
         });
     } catch (err) {
         console.error("AssignWork Error:", err);
@@ -44,39 +44,47 @@ const assignWork = async (req, res) => {
     }
 };
 
-const removeWork = async (req, res) => {
-    const { clockId } = req.body;
+const setOperatingLocations = async (req, res) => {
+    const userId = req.user.id;
+    const { locations } = req.body; // expecting array of { locationName, lat, long }
 
     try {
-        // 1. Check if job exists
-        const clock = await Clock.findById(clockId);
-
-        if (!clock) {
-            return res.status(404).json({
-                success: false,
-                message: "Job not found",
-            });
-        }
-
-        // 2. Only allow removal if status is still pending
-        if (clock.status !== "pending") {
+        if (!Array.isArray(locations)) {
             return res.status(400).json({
                 success: false,
-                message:
-                    "Job cannot be removed. Already clocked in or completed.",
+                message: "Locations must be an array",
             });
         }
 
-        // 3. Remove the job
-        await Clock.findByIdAndDelete(clockId);
+        // Format to match locationSchema
+        const formattedLocations = locations.map((loc) => ({
+            name: loc.locationName,
+            coordinates: {
+                type: "Point",
+                coordinates: [loc.long, loc.lat], // [longitude, latitude]
+            },
+        }));
+
+        const updatedUser = await User.findByIdAndUpdate(
+            userId,
+            { operatingLocations: formattedLocations }, // overwrite old array
+            { new: true, runValidators: true }
+        ).select("-password -__v");
+
+        if (!updatedUser) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found",
+            });
+        }
 
         return res.json({
             success: true,
-            message: "Pending job removed successfully",
+            message: "Operating locations updated successfully",
+            operatingLocations: updatedUser.operatingLocations,
         });
     } catch (err) {
-        console.error("RemoveWork Error:", err);
-
+        console.error("SetOperatingLocations Error:", err);
         return res.status(500).json({
             success: false,
             message: "Server error",
@@ -84,52 +92,4 @@ const removeWork = async (req, res) => {
     }
 };
 
-const updateWork = async (req, res) => {
-    const { clockId, date, locationName, long, lat } = req.body;
-
-    try {
-        const clock = await Clock.findById(clockId);
-
-        if (!clock) {
-            return res
-                .status(404)
-                .json({ success: false, message: "Job not found" });
-        }
-
-        if (clock.status !== "pending") {
-            return res.status(400).json({
-                success: false,
-                message: "Cannot update job that is not pending",
-            });
-        }
-
-        if (date) clock.date = new Date(date);
-        if (locationName || long || lat) {
-            clock.assignedLocation = {
-                name: locationName || clock.assignedLocation.name,
-                coordinates: {
-                    type: "Point",
-                    coordinates: [
-                        long || clock.assignedLocation.coordinates[0],
-                        lat || clock.assignedLocation.coordinates[1],
-                    ],
-                },
-            };
-        }
-
-        await clock.save();
-
-        return res.json({
-            success: true,
-            message: "Job updated successfully",
-            clock,
-        });
-    } catch (err) {
-        console.error("UpdateWork Error:", err);
-        return res
-            .status(500)
-            .json({ success: false, message: "Server error" });
-    }
-};
-
-module.exports = { assignWork, removeWork, updateWork };
+module.exports = { assignWork, setOperatingLocations };
